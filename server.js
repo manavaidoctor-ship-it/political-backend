@@ -15,11 +15,13 @@ app.use(express.json());
 // ✅ DATABASE CONNECTION
 // ============================================================
 const pool = mysql.createPool({
-  host: "localhost",
-  user: "root",
-  password: "kumaran@123",
-  database: "political_analysis",
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASS,
+  database: process.env.DB_NAME,
+  waitForConnections: true,
   connectionLimit: 10,
+  queueLimit: 0,
 });
 
 // ============================================================
