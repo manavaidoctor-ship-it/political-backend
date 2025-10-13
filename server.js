@@ -8,7 +8,14 @@ const fs = require("fs");
 const XLSX = require("xlsx");
 
 const app = express();
-app.use(cors());
+app.use(
+  cors({
+    origin: "https://political-portal.onrender.com",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type"],
+  })
+);
+
 app.use(express.json());
 
 // ============================================================
@@ -348,18 +355,52 @@ app.post("/api/login", async (req, res) => {
   }
 });
 // ============================================================
-// ✅ LOGIN API
+
 // ============================================================
-app.post("/api/login", async (req, res) => {
-  const { username, password } = req.body;
+// ✅ Wish Message - Upload Image
+app.post("/api/wish/upload", upload.single("image"), (req, res) => {
+  if (!req.file)
+    return res.status(400).json({ error: "No image uploaded" });
 
-  // Hardcoded login for now (you can later fetch from MySQL if needed)
-  const USER = { username: "admin", password: "12345" };
+  const fileUrl = `http://localhost:4000/uploads/${req.file.filename}`;
+  res.json({ imageUrl: fileUrl });
+});
 
-  if (username === USER.username && password === USER.password) {
-    return res.json({ success: true, user: { username } });
-  } else {
-    return res.status(401).json({ success: false, message: "Invalid credentials" });
+// ✅ Fetch recipients (all voters with valid mobile numbers)
+app.get("/api/wish/recipients", async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT DISTINCT mobile_number FROM voters WHERE mobile_number IS NOT NULL AND mobile_number <> ''"
+    );
+    res.json({ phones: rows.map((r) => r.mobile_number) });
+  } catch (err) {
+    console.error("Error fetching recipients:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ✅ Wish Message - Send Message
+app.post("/api/wish/send", async (req, res) => {
+  const { recipients, message, imageUrl, sentBy } = req.body;
+  if (!recipients || !message)
+    return res.status(400).json({ error: "Recipients and message required" });
+
+  try {
+    const results = [];
+    for (const phone of recipients) {
+      try {
+        await pool.query(
+          "INSERT INTO message_log (phone, message, image_url, source, status, sent_by) VALUES (?, ?, ?, 'wish_portal', 'logged', ?)",
+          [phone, message, imageUrl || null, sentBy || "System"]
+        );
+        results.push({ phone, status: "logged" });
+      } catch (err) {
+        results.push({ phone, status: "failed", error: err.message });
+      }
+    }
+    res.json({ message: "✅ Messages logged successfully!", total: recipients.length, results });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
