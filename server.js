@@ -10,7 +10,10 @@ const XLSX = require("xlsx");
 const app = express();
 app.use(
   cors({
-    origin: "https://political-portal.onrender.com",
+    origin: [
+      "https://political-frontend.onrender.com",
+      "http://localhost:3000"
+    ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type"],
   })
@@ -355,22 +358,24 @@ app.post("/api/login", async (req, res) => {
   }
 });
 // ============================================================
-
-// ============================================================
 // ✅ Wish Message - Upload Image
+// ============================================================
 app.post("/api/wish/upload", upload.single("image"), (req, res) => {
   if (!req.file)
     return res.status(400).json({ error: "No image uploaded" });
 
-  const fileUrl = `http://localhost:4000/uploads/${req.file.filename}`;
+  // Use your live backend domain instead of localhost
+  const fileUrl = `https://political-backend.onrender.com/uploads/${req.file.filename}`;
   res.json({ imageUrl: fileUrl });
 });
 
+// ============================================================
 // ✅ Fetch recipients (all voters with valid mobile numbers)
+// ============================================================
 app.get("/api/wish/recipients", async (req, res) => {
   try {
     const [rows] = await pool.query(
-      "SELECT DISTINCT mobile_number FROM voters WHERE mobile_number IS NOT NULL AND mobile_number <> ''"
+      "SELECT DISTINCT mobile_number FROM voters WHERE mobile_number IS NOT NULL AND mobile_number != ''"
     );
     res.json({ phones: rows.map((r) => r.mobile_number) });
   } catch (err) {
@@ -379,7 +384,9 @@ app.get("/api/wish/recipients", async (req, res) => {
   }
 });
 
+// ============================================================
 // ✅ Wish Message - Send Message
+// ============================================================
 app.post("/api/wish/send", async (req, res) => {
   const { recipients, message, imageUrl, sentBy } = req.body;
   if (!recipients || !message)
@@ -398,8 +405,14 @@ app.post("/api/wish/send", async (req, res) => {
         results.push({ phone, status: "failed", error: err.message });
       }
     }
-    res.json({ message: "✅ Messages logged successfully!", total: recipients.length, results });
+
+    res.json({
+      message: "✅ Messages logged successfully!",
+      total: recipients.length,
+      results,
+    });
   } catch (error) {
+    console.error("Error sending messages:", error);
     res.status(500).json({ error: error.message });
   }
 });
