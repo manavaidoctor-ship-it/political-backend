@@ -418,7 +418,13 @@ app.post("/api/wish/send", async (req, res) => {
 });
 
 // ============================================================
-// ✅ START SERVER
+// ✅ START SERVER (Render-compatible)
 // ============================================================
-const PORT = 4000;
+const PORT = process.env.PORT || 4000;
+
+app.get("/", (req, res) => {
+  res.send("✅ Political Backend is Live on Render!");
+});
+
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
